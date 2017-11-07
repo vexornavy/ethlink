@@ -1,0 +1,13 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "/S8zNEoVOsnNV+R4drTOrW/Br3s=",
+			"path": "github.com/russross/blackfriday",
+			"revision": "6d1ef893fcb01b4f50cb6e57ed7df3e2e627b6b2",
+			"revisionTime": "2017-10-11T18:22:19Z"
+		}
+	],
+	"rootPath": "github.com/vexornavy/ethlink"
+}
