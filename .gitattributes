@@ -1,0 +1,3 @@
+public/css/bootstrap.min.css linguist-vendored
+public/js/bootstrap.min.js linguist-vendored
+*.html linguist-language=Go
