@@ -1,1 +1,1 @@
-web: ethlink
+web: ethvault
