@@ -1,3 +1,5 @@
 public/css/bootstrap.min.css linguist-vendored
 public/js/bootstrap.min.js linguist-vendored
+public/js/popper.min.js linguist-vendored
+public/js/jquery-3.2.1.slim.min.js linguist-vendored
 *.html linguist-language=Go
