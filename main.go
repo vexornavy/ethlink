@@ -6,12 +6,11 @@ import (
   "net/http"
   "os"
 
-  //"github.com/ethereum/go-ethereum/common"
-  //"github.com/ethereum/go-ethereum/crypto"
+  //"github.com/vexornavy/ethvault/agent"
   )
 
 //cache our pages
-var tmpls = template.Must(template.ParseFiles("web/index.html", "web/login.html"))
+var tmpls = template.Must(template.ParseFiles("web/index.html", "web/login.html", "web/create.html"))
 
 func main() {
   port := os.Getenv("PORT")
@@ -19,9 +18,11 @@ func main() {
     port = "8080"
   }
 
+  //agent := agent.NewAgent()
   http.Handle("/css/", http.FileServer(http.Dir("web")))
   http.Handle("/js/", http.FileServer(http.Dir("web")))
   http.HandleFunc("/login/", loginHandler)
+  http.HandleFunc("/create/", createHandler)
   http.HandleFunc("/", mainHandler)
   http.ListenAndServe(":"+port, nil)
 }
@@ -47,6 +48,16 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
   }
   renderTemplate(w, "index.html", nil)
 }
+
+func createHandler(w http.ResponseWriter, r *http.Request) {
+  //force SSL on heroku
+  redirect := forceSsl(w, r)
+  if redirect {
+    return
+  }
+  renderTemplate(w, "create.html", nil)
+}
+
 func loginHandler(w http.ResponseWriter, r *http.Request) {
   //force SSL on heroku
   redirect := forceSsl(w, r)
