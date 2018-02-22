@@ -10,16 +10,23 @@ import (
   )
 
 //cache our pages
-var tmpls = template.Must(template.ParseFiles("web/index.html", "web/login.html", "web/create.html", "web/view.html"))
+var templates map[string]*template.Template
 //figure out if we need to force HTTPS
 var ssl = os.Getenv("FORCE_SSL") == "TRUE"
 //create agent
 var a = agent.NewAgent()
 var protocol string
 
+//Structs for giving data to templates
 type displayAddr struct {
   Address string
   Key string
+  Token string
+  Path string
+}
+
+type Path struct {
+  Path string
 }
 
 func main() {
@@ -32,6 +39,15 @@ func main() {
   } else {
     protocol = "http://"
   }
+  templates = make(map[string]*template.Template)
+
+  //initialize templates
+  tlist := []string{"index", "login", "create", "view"}
+  templates = make(map[string]*template.Template)
+  for _, name := range tlist {
+    t := template.Must(template.New("layout").ParseFiles("web/layout.html", "web/" + name + ".html"))
+    templates[name] = t
+  }
 
   //agent := agent.NewAgent()
   http.Handle("/css/", http.FileServer(http.Dir("web")))
@@ -41,6 +57,7 @@ func main() {
   http.HandleFunc("/", mainHandler)
   http.ListenAndServe(":"+port, nil)
 }
+
 
 //force SSL helper when running on heroku
 //code source: github.com/jonahgeorge/force-ssl-heroku
@@ -69,7 +86,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
     http.Redirect(w, r, rootUrl, http.StatusTemporaryRedirect)
     return
   }
-  renderTemplate(w, "index.html", nil)
+  renderTemplate(w, r, "index", nil)
 }
 
 func createHandler(w http.ResponseWriter, r *http.Request) {
@@ -85,13 +102,13 @@ func createHandler(w http.ResponseWriter, r *http.Request) {
     token := a.CreateAddress(passphrase)
     addr, key, err := a.GetKey(token)
     if err != nil {
-      renderTemplate(w, "index.html", nil)
+      renderTemplate(w, r, "index", nil)
     }
-    p := &displayAddr{addr, key}
-    renderTemplate(w, "view.html", p)
+    p := &displayAddr{addr, key, token, "../"}
+    renderTemplate(w, r, "view", p)
     return
   }
-  renderTemplate(w, "create.html", nil)
+  renderTemplate(w, r, "create", nil)
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -102,11 +119,20 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
   }
-  renderTemplate(w, "login.html", nil)
+  renderTemplate(w, r, "login", nil)
 }
 
-func renderTemplate(w http.ResponseWriter, tmpl string, data interface{}){
-  err := tmpls.ExecuteTemplate(w, tmpl, data)
+func renderTemplate(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}){
+  //if we're not at root, set path to "../", else empty string.
+  if data == nil {
+    path := ""
+    if r.URL.Path != "/"{
+      path = "../"
+    }
+    data = Path{path}
+  }
+  t := templates[tmpl]
+  err := t.Execute(w, data)
   if err != nil {
     //log error and return it
     log.Println(err.Error())
