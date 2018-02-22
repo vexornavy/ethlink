@@ -18,8 +18,8 @@ var a = agent.NewAgent()
 var protocol string
 
 type displayAddr struct {
-  address string
-  key string
+  Address string
+  Key string
 }
 
 func main() {
@@ -87,8 +87,7 @@ func createHandler(w http.ResponseWriter, r *http.Request) {
     if err != nil {
       renderTemplate(w, "index.html", nil)
     }
-    var p interface{}
-    p = &displayAddr{addr, key}
+    p := &displayAddr{addr, key}
     renderTemplate(w, "view.html", p)
     return
   }

@@ -2,11 +2,12 @@ package agent
 
 import
   (
+    "fmt"
     "time"
     crand "crypto/rand"
+    "crypto/md5"
     "errors"
 
-    "github.com/ethereum/go-ethereum/crypto"
     "github.com/ethereum/go-ethereum/accounts/keystore"
     "github.com/ethereum/go-ethereum/accounts"
     //"github.com/ethereum/go-ethereum/ethclient"
@@ -48,8 +49,8 @@ func (a *Agent) CreateAddress(passphrase string) (token string) {
   //generate random token from the hash
   b := make([]byte, 32)
   crand.Read(b)
-  hash := crypto.Keccak256Hash(b)
-  token = hash.Str()
+  hash := md5.Sum(b)
+  token = fmt.Sprintf("%x", hash)
   //store token in the agent
   a.tokens[token] = Token{(time.Now()).Add(time.Minute*15), account, token, passphrase, "view"}
   return
@@ -71,8 +72,7 @@ func (a *Agent) GetKey(token string) (address string, privateKey string, err err
   //load the privatekey of the wallet we just created and convert it to a hex representation
   keyjson, _ := a.keystore.Export(account, passphrase, passphrase)
   key, _ := keystore.DecryptKey(keyjson, passphrase)
-  key_bytes := key.PrivateKey.D.Bytes()
-  privateKey = string(key_bytes[:])
+  privateKey = fmt.Sprintf("%x", key.PrivateKey.D.Bytes())
   address = account.Address.Hex()
   return address, privateKey, nil
 }

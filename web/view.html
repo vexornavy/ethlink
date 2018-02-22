@@ -34,15 +34,21 @@
     </nav>
 
     <main role="main" class="container">
-      <div class="m-5">
-        <div class="alert alert-primary m-3" role="alert">
+      <div class="my-5 mx-3">
+        <div class="alert alert-primary my-3" role="alert">
           New wallet created! Please keep your keyfile and private key somewhere safe. Ethvault does *not* store your wallet for you.
         </div>
-        <span class="border border-primary">
-          <h3>Your address is: {{.address}}
-        </span>
-
-        <button type="button" class="btn btn-lg btn-primary" data-toggle="popover" title="Private key" data-content="{{.title}}">Click to view private key</button>
+        <div class="my-3">
+          <h3>Your address is: {{.Address}}
+        </div>
+        <div class="my-3">
+          <button type="button" class="btn btn-lg btn-primary" data-toggle="collapse" data-target="#privateKey" aria-expanded="false" aria-controls="privateKey">Click to view private Key</button>
+        </div>
+        <div class="collapse m-4" id="privateKey">
+          <div class="card card-body">
+            <p>{{.Key}}</p>
+          </div>
+        </div>
       </div>
 
     </main><!-- /.container -->
