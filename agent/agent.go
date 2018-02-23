@@ -8,6 +8,7 @@ import
     "crypto/md5"
     "errors"
 
+    "github.com/ethereum/go-ethereum/crypto"
     "github.com/ethereum/go-ethereum/accounts/keystore"
     "github.com/ethereum/go-ethereum/accounts"
     //"github.com/ethereum/go-ethereum/ethclient"
@@ -72,7 +73,7 @@ func (a *Agent) GetKey(token string) (address string, privateKey string, err err
   //load the privatekey of the wallet we just created and convert it to a hex representation
   keyjson, _ := a.keystore.Export(account, passphrase, passphrase)
   key, _ := keystore.DecryptKey(keyjson, passphrase)
-  privateKey = fmt.Sprintf("%x", key.PrivateKey.D.Bytes())
+  privateKey = fmt.Sprintf("%x", crypto.FromECDSA(key.PrivateKey))
   address = account.Address.Hex()
   return address, privateKey, nil
 }
