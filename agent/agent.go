@@ -72,10 +72,12 @@ func (a *Agent) GetKey(token string) (address string, privateKey string, err err
   }
   passphrase := t.passphrase
   account := t.account
-  log.Printf("%T/n", account)
+  log.Printf("%T\n", account)
   //load the privatekey of the wallet we just created and convert it to a hex representation
   keyjson, _ := a.keystore.Export(account, passphrase, passphrase)
   key, _ := keystore.DecryptKey(keyjson, passphrase)
+  log.Printf("%T\n", key)
+  log.Printf("%T\n", key.PrivateKey)
   privateKey = fmt.Sprintf("%x", crypto.FromECDSA(key.PrivateKey))
   address = account.Address.Hex()
   return address, privateKey, nil
