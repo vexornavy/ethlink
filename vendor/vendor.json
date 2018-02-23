@@ -75,10 +75,11 @@
 			"revisionTime": "2018-02-21T18:21:41Z"
 		},
 		{
-			"checksumSHA1": "v+J4w9MJlMxpTLYtt2tRI5R6Lks=",
+			"checksumSHA1": "3DSti/xaGCB4Ky/fH3DoaTgr8wY=",
 			"path": "github.com/ethereum/go-ethereum/crypto/secp256k1",
-			"revision": "45ce4dce3f9e9058d599fab85e4f5b8b7c9393cb",
-			"revisionTime": "2018-02-21T18:21:41Z"
+			"revision": "a1984ce727642b1989657b9eb430562d47f89c70",
+			"revisionTime": "2018-02-22T22:15:13Z",
+			"tree": true
 		},
 		{
 			"checksumSHA1": "9BXdjbACsHoHZZfY3b8bMc76R7w=",
@@ -121,6 +122,11 @@
 			"path": "github.com/ethereum/go-ethereum/rlp",
 			"revision": "45ce4dce3f9e9058d599fab85e4f5b8b7c9393cb",
 			"revisionTime": "2018-02-21T18:21:41Z"
+		},
+		{
+			"path": "github.com/ethereum/go-ethereum/secp256k1",
+			"revision": "",
+			"tree": true
 		},
 		{
 			"checksumSHA1": "kdW/BgPFbtF/yPyaW+SLsD13OnU=",
