@@ -124,11 +124,6 @@
 			"revisionTime": "2018-02-21T18:21:41Z"
 		},
 		{
-			"path": "github.com/ethereum/go-ethereum/secp256k1",
-			"revision": "",
-			"tree": true
-		},
-		{
 			"checksumSHA1": "kdW/BgPFbtF/yPyaW+SLsD13OnU=",
 			"path": "github.com/ethereum/go-ethereum/trie",
 			"revision": "45ce4dce3f9e9058d599fab85e4f5b8b7c9393cb",
