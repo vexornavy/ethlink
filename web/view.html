@@ -1,21 +1,22 @@
 {{ define "content" }}
 
-<div class="my-5 mx-3 jumbotron">
-  <div class="alert alert-primary my-3" role="alert">
+<div class="my-3 jumbotron">
+  <div class="alert alert-primary" role="alert">
     New wallet created! Please keep your keyfile and private key somewhere safe. Ethvault does *not* store your wallet for you.
   </div>
-  <div class="my-3">
-    <h3>Your address is: {{.Address}}
-  </div>
-  <div class="my-3">
-    <span class="mx-3 d-inline">
-      <button type="button" class="btn btn-lg btn-primary" data-toggle="collapse" data-target="#privateKey" aria-expanded="false" aria-controls="privateKey">Click to view private Key</button>
-      <form action="../download/" target="_blank" method="post">
+  <div>
+    <h3>Your address is: {{.Address}}</h3>
+    <div class="row">
+      <div class="col-md-auto">
+        <button type="button" class="btn btn-lg btn-primary" data-toggle="collapse" data-target="#privateKey" aria-expanded="false" aria-controls="privateKey">Click to view private Key</button>
+      </div>
+      <form action="../download/" target="_blank" method="post" class="col-md-auto">
         <input type="hidden" name="token" value="{{.Token}}"></input>
         <button type="submit" class="btn btn-lg btn-primary">Download keyfile</button>
       </form>
-    </span>
-  <div class="collapse m-4" id="privateKey">
+    </div>
+  </div>
+  <div class="collapse mt-2" id="privateKey">
     <div class="card card-body">
       <p>{{.Key}}</p>
     </div>

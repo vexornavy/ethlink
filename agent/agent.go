@@ -7,8 +7,6 @@ import
     crand "crypto/rand"
     "crypto/md5"
     "errors"
-    //debug
-    //"log"
 
     "github.com/ethereum/go-ethereum/crypto"
     "github.com/ethereum/go-ethereum/accounts/keystore"
