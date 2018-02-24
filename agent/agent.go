@@ -8,7 +8,7 @@ import
     "crypto/md5"
     "errors"
     //debug
-    "log"
+    //"log"
 
     "github.com/ethereum/go-ethereum/crypto"
     "github.com/ethereum/go-ethereum/accounts/keystore"
@@ -40,7 +40,7 @@ func NewAgent() *Agent {
   //client, _ := ethclient.Dial(RPC)
   var tokens map[string]Token
   tokens = make(map[string]Token)
-  ks := keystore.NewKeyStore("/keys/", keystore.StandardScryptN, keystore.StandardScryptP)
+  ks := keystore.NewKeyStore("keys/", keystore.StandardScryptN, keystore.StandardScryptP)
   a := Agent{ks, tokens}
   //a := Agent{ks, client, tokens}
   return &a
@@ -72,12 +72,9 @@ func (a *Agent) GetKey(token string) (address string, privateKey string, err err
   }
   passphrase := t.passphrase
   account := t.account
-  log.Printf("%T\n", account)
   //load the privatekey of the wallet we just created and convert it to a hex representation
   keyjson, _ := a.keystore.Export(account, passphrase, passphrase)
   key, _ := keystore.DecryptKey(keyjson, passphrase)
-  log.Printf("%T\n", key)
-  log.Printf("%T\n", key.PrivateKey)
   privateKey = fmt.Sprintf("%x", crypto.FromECDSA(key.PrivateKey))
   address = account.Address.Hex()
   return address, privateKey, nil

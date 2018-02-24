@@ -16,3 +16,6 @@ ethvault
 
 # Don't commit vendored code
 vendor/*/
+
+# ignore keystore directory
+keys/
