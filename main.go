@@ -5,6 +5,7 @@ import (
   "log"
   "net/http"
   "os"
+  "time"
 
   "github.com/vexornavy/ethvault/agent"
   )
@@ -99,11 +100,13 @@ func createHandler(w http.ResponseWriter, r *http.Request) {
   }
   if r.Method == "POST" {
     passphrase := r.FormValue("passphrase")
-    token := a.CreateAddress(passphrase)
-    addr, key, err := a.GetKey(token)
+    account := a.CreateAddress(passphrase)
+    key, err := a.GetKey(account)
+    token := a.CreateToken(account, "download", time.Minute*30)
     if err != nil {
       renderTemplate(w, r, "index", nil)
     }
+    addr := account.Address.Hex()
     p := &displayAddr{addr, key, token, "../"}
     renderTemplate(w, r, "view", p)
     return
@@ -120,6 +123,20 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
     }
   }
   renderTemplate(w, r, "login", nil)
+}
+
+func downloadHandler(w http.ResponseWriter, r *http.Request) {
+  //force SSL on heroku
+  if ssl {
+    redirect := forceSsl(w, r)
+    if redirect {
+      return
+    }
+  }
+
+  if r.Method == "POST" {
+    token := r.FormValue("token")
+  }
 }
 
 func renderTemplate(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}){

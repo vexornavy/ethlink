@@ -20,60 +20,66 @@ import
 //TODO : periodically delete expired tokens
 type Token struct {
   expiry time.Time
-  account accounts.Account
+  account *accounts.Account
   token string
-  passphrase string
   permissions string
+}
+
+type Passphrase struct {
+  expiry time.Time
+  passphrase string
 }
 
 type Agent struct {
   keystore *keystore.KeyStore
   //client *ethclient.Client
   tokens map[string]Token
+  passwords map[*accounts.Account]Passphrase
 }
 
 
 //Initialize a new agent
 func NewAgent() *Agent {
   //client, _ := ethclient.Dial(RPC)
-  var tokens map[string]Token
-  tokens = make(map[string]Token)
+  tokens := make(map[string]Token)
+  passwds := make(map[*accounts.Account]Passphrase)
   ks := keystore.NewKeyStore("keys/", keystore.StandardScryptN, keystore.StandardScryptP)
-  a := Agent{ks, tokens}
+  a := Agent{ks, tokens, passwds}
   //a := Agent{ks, client, tokens}
   return &a
 }
 
-//Create new random key
-func (a *Agent) CreateAddress(passphrase string) (token string) {
-  account, _ := a.keystore.NewAccount(passphrase)
-  //generate random token from the hash
+//creates a new token and stores it in the agent
+func (a *Agent) CreateToken(account *accounts.Account, permissions string, expiry time.Duration) (token string) {
   b := make([]byte, 32)
   crand.Read(b)
   hash := md5.Sum(b)
   token = fmt.Sprintf("%x", hash)
   //store token in the agent
-  a.tokens[token] = Token{(time.Now()).Add(time.Minute*15), account, token, passphrase, "view"}
-  return
+  a.tokens[token] = Token{(time.Now()).Add(expiry), account, token, permissions}
+  return token
 }
 
-func (a *Agent) GetKey(token string) (address string, privateKey string, err error) {
-  t, ok := a.tokens[token]
+//Create new random key
+func (a *Agent) CreateAddress(passphrase string) (account *accounts.Account) {
+  acc, _ := a.keystore.NewAccount(passphrase)
+  //save key for 15 minutes
+  a.passwords[&acc] = Passphrase{time.Now().Add(time.Hour), passphrase}
+  return &acc
+}
+
+func (a *Agent) GetKey(account *accounts.Account) (privateKey string, err error) {
+  passphrase, ok := a.passwords[account]
   if !ok {
-    return "", "", errors.New("tokenNotPresent")
+    return "", errors.New("address not found")
   }
-  if (time.Now()).After(t.expiry) {
-    return "", "", errors.New("tokenExpired")
+  if time.Now().After(passphrase.expiry) {
+    return "", errors.New("address expired")
   }
-  if t.permissions != "view"{
-    return "", "", errors.New("insufficientPermissions")
-  }
-  passphrase := t.passphrase
-  account := t.account
+  secret := passphrase.passphrase
   //load the privatekey of the wallet we just created and convert it to a hex representation
-  keyjson, _ := a.keystore.Export(account, passphrase, passphrase)
-  key, _ := keystore.DecryptKey(keyjson, passphrase)
+  keyjson, _ := a.keystore.Export(*account, secret, secret)
+  key, _ := keystore.DecryptKey(keyjson, secret)
   privateKey = fmt.Sprintf("%x", crypto.FromECDSA(key.PrivateKey))
-  address = account.Address.Hex()
-  return address, privateKey, nil
+  return privateKey, nil
 }
