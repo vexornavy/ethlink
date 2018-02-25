@@ -53,6 +53,7 @@ func main() {
   //agent := agent.NewAgent()
   http.Handle("/css/", http.FileServer(http.Dir("web")))
   http.Handle("/js/", http.FileServer(http.Dir("web")))
+  http.HandleFunc("/download/", downloadHandler)
   http.HandleFunc("/login/", loginHandler)
   http.HandleFunc("/create/", createHandler)
   http.HandleFunc("/", mainHandler)
@@ -136,7 +137,19 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 
   if r.Method == "POST" {
     token := r.FormValue("token")
+    path, err := a.KeyfilePath(token)
+    if err != nil {
+      log.Println(err.Error())
+      renderTemplate(w, r, "index", nil)
+      return
+    }
+    w.Header().Set("Content-Disposition", "attachment; filename=" + path[42:] + ".json")
+    http.ServeFile(w, r, path)
+    return
   }
+  rootUrl := protocol + r.Host + "/"
+  http.Redirect(w, r, rootUrl, http.StatusTemporaryRedirect)
+  return
 }
 
 func renderTemplate(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}){

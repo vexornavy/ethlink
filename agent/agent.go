@@ -7,6 +7,8 @@ import
     crand "crypto/rand"
     "crypto/md5"
     "errors"
+    "path/filepath"
+    "strings"
 
     "github.com/ethereum/go-ethereum/crypto"
     "github.com/ethereum/go-ethereum/accounts/keystore"
@@ -82,4 +84,24 @@ func (a *Agent) GetKey(account *accounts.Account) (privateKey string, err error)
   key, _ := keystore.DecryptKey(keyjson, secret)
   privateKey = fmt.Sprintf("%x", crypto.FromECDSA(key.PrivateKey))
   return privateKey, nil
+}
+
+func (a *Agent) KeyfilePath(token string) (path string, err error) {
+  t, ok := a.tokens[token]
+  if !ok {
+    return "", errors.New("token not found")
+  }
+  if time.Now().After(t.expiry){
+    return "", errors.New("token expired")
+  }
+  address := t.account.Address.Hex()
+  names, _ := filepath.Glob("keys/*")
+  for _, v := range names {
+    //chop off time data from the beginning of filenames
+    addr := v[42:]
+    if strings.ToLower(address[2:]) == addr {
+      return v, nil
+    }
+  }
+  return "", errors.New("address not found")
 }
