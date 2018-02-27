@@ -6,8 +6,10 @@ import (
   "net/http"
   "os"
   "time"
+  "io/ioutil"
 
   "github.com/vexornavy/ethvault/agent"
+  "github.com/ethereum/go-ethereum/accounts"
   )
 
 //cache our pages
@@ -22,6 +24,14 @@ var protocol string
 type displayAddr struct {
   Address string
   Key string
+  Token string
+  Path string
+}
+
+type send struct {
+  Balance float64
+  GasPrice float64
+  Nonce uint64
   Token string
   Path string
 }
@@ -43,7 +53,7 @@ func main() {
   templates = make(map[string]*template.Template)
 
   //initialize templates
-  tlist := []string{"index", "login", "create", "view"}
+  tlist := []string{"send", "index", "login", "create", "view"}
   templates = make(map[string]*template.Template)
   for _, name := range tlist {
     t := template.Must(template.New("layout").ParseFiles("web/layout.html", "web/" + name + ".html"))
@@ -53,9 +63,10 @@ func main() {
   //agent := agent.NewAgent()
   http.Handle("/css/", http.FileServer(http.Dir("web")))
   http.Handle("/js/", http.FileServer(http.Dir("web")))
+  http.HandleFunc("/access/", authHandler)
+  http.HandleFunc("/create/", createHandler)
   http.HandleFunc("/download/", downloadHandler)
   http.HandleFunc("/login/", loginHandler)
-  http.HandleFunc("/create/", createHandler)
   http.HandleFunc("/", mainHandler)
   http.ListenAndServe(":"+port, nil)
 }
@@ -91,6 +102,55 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
   renderTemplate(w, r, "index", nil)
 }
 
+func authHandler(w http.ResponseWriter, r *http.Request) {
+  //force SSL on heroku
+  if ssl {
+    redirect := forceSsl(w, r)
+    if redirect {
+      return
+    }
+  }
+
+  if r.Method == "POST" {
+    passphrase := r.FormValue("passphrase")
+    keyfile, header, err := r.FormFile("keyfile")
+    key := r.FormValue("privatekey")
+    var account *accounts.Account
+    if key != "" {
+      account, err = a.ImportKey(key)
+    } else if keyfile != nil {
+      //make sure we don't load large files
+      if header.Size > 2048 {
+        renderTemplate(w, r, "index", nil)
+        return
+      }
+      var keyjson []byte
+      keyjson, err = ioutil.ReadAll(keyfile)
+      account, err = a.ImportKeyfile(keyjson, passphrase)
+    }
+    if err != nil {
+      log.Println(err)
+      renderTemplate(w, r, "index", nil)
+      return
+    }
+    balance, err := a.GetBalance(account)
+    nonce, err := a.GetNonce(account)
+    if err != nil {
+      renderTemplate(w, r, "index", nil)
+      return
+    }
+    token := a.CreateToken(account, "send", time.Minute*20)
+    gasprice, _ := a.EstimateGas()
+    p := send{balance, gasprice, nonce, token, "../"}
+    renderTemplate(w, r, "send", p)
+    return
+  }
+
+  rootUrl := protocol + r.Host + "/"
+  http.Redirect(w, r, rootUrl, http.StatusTemporaryRedirect)
+  return
+}
+
 func createHandler(w http.ResponseWriter, r *http.Request) {
   //force SSL on heroku
   if ssl {
@@ -106,24 +166,14 @@ func createHandler(w http.ResponseWriter, r *http.Request) {
     token := a.CreateToken(account, "download", time.Minute*30)
     if err != nil {
       renderTemplate(w, r, "index", nil)
+      return
     }
     addr := account.Address.Hex()
-    p := &displayAddr{addr, key, token, "../"}
+    p := displayAddr{addr, key, token, "../"}
     renderTemplate(w, r, "view", p)
     return
   }
   renderTemplate(w, r, "create", nil)
-}
-
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-  //force SSL on heroku
-  if ssl {
-    redirect := forceSsl(w, r)
-    if redirect {
-      return
-    }
-  }
-  renderTemplate(w, r, "login", nil)
 }
 
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
@@ -150,6 +200,17 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
   rootUrl := protocol + r.Host + "/"
   http.Redirect(w, r, rootUrl, http.StatusTemporaryRedirect)
   return
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+  //force SSL on heroku
+  if ssl {
+    redirect := forceSsl(w, r)
+    if redirect {
+      return
+    }
+  }
+  renderTemplate(w, r, "login", nil)
 }
 
 func renderTemplate(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}){

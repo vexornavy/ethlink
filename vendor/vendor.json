@@ -76,6 +76,12 @@
 			"revisionTime": "2018-02-23T17:02:51Z"
 		},
 		{
+			"checksumSHA1": "3Hc1WnzwIlYmXfGcdGFHgP33SjM=",
+			"path": "github.com/ethereum/go-ethereum/ethclient",
+			"revision": "b574b5776695eb30e034fd8c7a468b3f03d4c6b9",
+			"revisionTime": "2018-02-27T13:32:38Z"
+		},
+		{
 			"checksumSHA1": "DOEjudcn+RTt4VoIHXQZK4Pm1d0=",
 			"path": "github.com/ethereum/go-ethereum/ethdb",
 			"revision": "423c8bb1d8210387944e379a5f151c5ff4b8803f",
@@ -112,6 +118,12 @@
 			"revisionTime": "2018-02-23T17:02:51Z"
 		},
 		{
+			"checksumSHA1": "LAJe3req28LdiZ0Fm/YPTDwH2as=",
+			"path": "github.com/ethereum/go-ethereum/rpc",
+			"revision": "b574b5776695eb30e034fd8c7a468b3f03d4c6b9",
+			"revisionTime": "2018-02-27T13:32:38Z"
+		},
+		{
 			"checksumSHA1": "Fh+cW+qE33eSid6OfWOUZ5g05Q4=",
 			"path": "github.com/ethereum/go-ethereum/trie",
 			"revision": "423c8bb1d8210387944e379a5f151c5ff4b8803f",
@@ -140,6 +152,12 @@
 			"path": "github.com/rjeczalik/notify",
 			"revision": "c31e5f2cb22b3e4ef3f882f413847669bf2652b9",
 			"revisionTime": "2018-02-03T14:01:15Z"
+		},
+		{
+			"checksumSHA1": "62AWD68bDmLyRunZGJ99J7bNceA=",
+			"path": "github.com/rs/cors",
+			"revision": "36f00aa91d31dac5aeba5cee361f0e5d395116ac",
+			"revisionTime": "2018-02-24T20:03:55Z"
 		},
 		{
 			"checksumSHA1": "/CaCQCgE6P4QBc+n51peQBOuRP8=",
@@ -226,6 +244,12 @@
 			"revisionTime": "2018-02-22T13:47:07Z"
 		},
 		{
+			"checksumSHA1": "7EZyXN0EmZLgGxZxK01IJua4c8o=",
+			"path": "golang.org/x/net/websocket",
+			"revision": "cbe0f9307d0156177f9dd5dc85da1a31abc5f2fb",
+			"revisionTime": "2018-02-18T17:15:52Z"
+		},
+		{
 			"checksumSHA1": "gkW/8/3Zvz/RPG4W6N7Tpzzp6oY=",
 			"path": "golang.org/x/sys/unix",
 			"revision": "88d2dcc510266da9f7f8c7f34e1940716cab5f5c",
@@ -242,6 +266,12 @@
 			"path": "gopkg.in/karalabe/cookiejar.v2/collections/prque",
 			"revision": "8dcd6a7f4951f6ff3ee9cbb919a06d8925822e57",
 			"revisionTime": "2015-07-24T13:16:13Z"
+		},
+		{
+			"checksumSHA1": "0xgs8lwcWLUffemlj+SsgKlxvDU=",
+			"path": "gopkg.in/natefinch/npipe.v2",
+			"revision": "c1b8fa8bdccecb0b8db834ee0b92fdbcfa606dd6",
+			"revisionTime": "2016-06-21T03:49:01Z"
 		}
 	],
 	"rootPath": "github.com/vexornavy/ethvault"
