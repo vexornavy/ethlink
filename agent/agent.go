@@ -12,7 +12,10 @@ import
     "encoding/hex"
     "math/big"
     "context"
+    "log"
 
+    "github.com/ethereum/go-ethereum/common"
+    "github.com/ethereum/go-ethereum/core/types"
     "github.com/ethereum/go-ethereum/crypto"
     "github.com/ethereum/go-ethereum/accounts/keystore"
     "github.com/ethereum/go-ethereum/accounts"
@@ -25,8 +28,11 @@ const (
   Million = Thousand * Thousand
   Milliard = Million * Thousand
   Billion = Million * Million
+  Trillion = Million * Billion
 )
 var RPC = os.Getenv("RPC_URL")
+var test = os.Getenv("ETHVAULT_ENV")
+var chainID *big.Int
 
 //TODO : periodically delete expired tokens
 type Token struct {
@@ -41,24 +47,44 @@ type Passphrase struct {
   passphrase string
 }
 
+type Transaction struct {
+  expiry time.Time
+  transaction *types.Transaction
+}
+
 type Agent struct {
   keystore *keystore.KeyStore
   client *client.Client
   tokens map[string]Token
   passwords map[*accounts.Account]Passphrase
+  txQueue map[string]Transaction
 }
 
 
 //Initialize a new agent
 func NewAgent() *Agent {
-  if RPC == "" {
-    RPC = "https://mainnet.infura.io"
+  var network string
+  if test == "test" || test == "TEST" {
+    chainID = big.NewInt(3)
+    if RPC == "" {
+      RPC = "https://ropsten.infura.io"
+    }
+    network = "ropsten test network"
+  } else {
+    chainID = big.NewInt(1)
+    if RPC == "" {
+      RPC = "https://mainnet.infura.io"
+    }
+    network = "mainnet"
   }
   client, _ := client.Dial(RPC)
   tokens := make(map[string]Token)
   passwds := make(map[*accounts.Account]Passphrase)
+  queue := make(map[string]Transaction)
   ks := keystore.NewKeyStore("keys/", keystore.StandardScryptN, keystore.StandardScryptP)
-  a := Agent{ks, client, tokens, passwds}
+  a := Agent{ks, client, tokens, passwds, queue}
+  log.Println("agent initialized on " + network)
+  time.Sleep(time.Millisecond*100)
   return &a
 }
 
@@ -75,7 +101,7 @@ func (a *Agent) CreateToken(account *accounts.Account, permissions string, expir
 //Create new random key
 func (a *Agent) CreateAddress(passphrase string) (account *accounts.Account) {
   acc, _ := a.keystore.NewAccount(passphrase)
-  //save key for 15 minutes
+  //store the account for an hour
   a.passwords[&acc] = Passphrase{time.Now().Add(time.Hour), passphrase}
   return &acc
 }
@@ -109,18 +135,19 @@ func (a *Agent) KeyfilePath(token string) (path string, err error) {
     return "", errors.New("token invalid")
   }
   address := t.account.Address.Hex()
+  log.Println("looking for", address)
 
   //iterate over every keyfile in the keyfile directory
   names, _ := filepath.Glob("keys/*")
   for _, v := range names {
     //chop off time data from the beginning of filenames, only leaving the address
     addr := v[42:]
+    log.Println(addr)
     if strings.ToLower(address[2:]) == addr {
       return v, nil
     }
-    return "", errors.New("address not found")
   }
-  return "", errors.New("unknown error")
+  return "", errors.New("address not found")
 }
 
 //import a JSON keyfile, given as a byte array to keystore
@@ -182,5 +209,107 @@ func (a *Agent) GetNonce(acc *accounts.Account) (nonce uint64, err error) {
 func (a *Agent) EstimateGas() (gasprice float64, err error) {
   gas, err := a.client.SuggestGasPrice(context.TODO())
   gasprice = float64(gas.Int64()) / Milliard
+  return
+}
+
+func (a *Agent) NewTx(nonce uint64, to common.Address, amount float64, gasLimit uint64, gasPrice float64, token string) (tx *types.Transaction, err error) {
+  t, ok := a.tokens[token]
+  if !ok {
+    return nil, errors.New("token not found")
+  }
+  if time.Now().After(t.expiry){
+    return nil, errors.New("token expired")
+  }
+  if t.permissions != "send" {
+    return nil, errors.New("token invalid")
+  }
+
+  //no data - empty array
+  var d []byte
+
+  //convert amount from ether (float64) to wei(*big.Int)
+  x := big.NewFloat(amount)
+  tril := big.NewFloat(float64(Trillion))
+  x = x.Mul(x, tril)
+  amt, _ := x.Int(nil)
+
+  //convert amount from gwei(float64) to wei(*big.Int)
+  x = big.NewFloat(gasPrice)
+  mrd := big.NewFloat(float64(Milliard))
+  x = x.Mul(x, mrd)
+  gprice, _ := x.Int(nil)
+
+  tx = types.NewTransaction(nonce, to, amt, gasLimit, gprice, d)
+  return tx, nil
+}
+
+func (a *Agent) QueueTx(tx *types.Transaction, token string) (txToken string, err error) {
+  t, ok := a.tokens[token]
+  if !ok {
+    return "", errors.New("token not found")
+  }
+  if time.Now().After(t.expiry) {
+    return "", errors.New("token expired")
+  }
+  if t.permissions != "send" {
+    return "", errors.New("token invalid")
+  }
+  acc := t.account
+  passphrase := a.passwords[acc].passphrase
+  tx, err = a.keystore.SignTxWithPassphrase(*acc, passphrase, tx, chainID)
+  if err != nil {
+    return "", err
+  }
+  b := make([]byte, 32)
+  crand.Read(b)
+  txToken = fmt.Sprintf("%x", b)
+  a.txQueue[txToken] = Transaction{time.Now().Add(time.Minute*20), tx}
+  return txToken, nil
+}
+
+func (a *Agent) GetAccount(token string) (acc *accounts.Account, err error) {
+  t, ok := a.tokens[token]
+  if !ok {
+    return nil, errors.New("token not found")
+  }
+  if time.Now().After(t.expiry) {
+    return nil, errors.New("token expired")
+  }
+  acc = t.account
+  return acc, nil
+}
+
+func (a *Agent) clearExpired() {
+  //remove every expired token
+  for k, v := range a.tokens {
+    if time.Now().After(v.expiry) {
+      delete(a.tokens, k)
+    }
+  }
+  //same but passwords
+  for k, v := range a.passwords {
+    if time.Now().After(v.expiry) {
+      //remove expired key from keystore
+      a.keystore.Delete(*k, v.passphrase)
+      delete(a.passwords, k)
+    }
+  }
+  //same but transactions
+  for k, v := range a.txQueue {
+    if time.Now().After(v.expiry) {
+      delete(a.txQueue, k)
+    }
+  }
+  return
+}
+
+func (a *Agent) gcLoop() {
+  //trigger garbage collection routine every 15 minutes automatically
+  for {
+    log.Println("clearing all expired data...")
+    a.clearExpired()
+    log.Println("done")
+    time.Sleep(time.Minute*15)
+  }
   return
 }

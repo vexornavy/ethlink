@@ -7,8 +7,12 @@ import (
   "os"
   "time"
   "io/ioutil"
+  "errors"
+  "strings"
+  conv "strconv"
 
   "github.com/vexornavy/ethvault/agent"
+  "github.com/ethereum/go-ethereum/common"
   "github.com/ethereum/go-ethereum/accounts"
   )
 
@@ -27,7 +31,6 @@ type displayAddr struct {
   Token string
   Path string
 }
-
 type send struct {
   Balance float64
   GasPrice float64
@@ -35,7 +38,27 @@ type send struct {
   Token string
   Path string
 }
-
+type confirm struct {
+  Amount string
+  To string
+  From string
+  Token string
+  Path string
+}
+type sendPrefilled struct {
+  Error string
+  Balance float64
+  Address string
+  Amount float64
+  GasPrice float64
+  Nonce uint64
+  Token string
+  Path string
+}
+type errorSplash struct {
+  Error string
+  Path string
+}
 type Path struct {
   Path string
 }
@@ -50,21 +73,22 @@ func main() {
   } else {
     protocol = "http://"
   }
-  templates = make(map[string]*template.Template)
 
   //initialize templates
-  tlist := []string{"send", "index", "login", "create", "view"}
+  templates = make(map[string]*template.Template)
+  tlist := []string{"send", "index", "login", "create", "view", "error", "confirm"}
   templates = make(map[string]*template.Template)
   for _, name := range tlist {
     t := template.Must(template.New("layout").ParseFiles("web/layout.html", "web/" + name + ".html"))
     templates[name] = t
   }
-
-  //agent := agent.NewAgent()
+  //load handler functions
+  log.Println("Ethvault running on port :"+port)
   http.Handle("/css/", http.FileServer(http.Dir("web")))
   http.Handle("/js/", http.FileServer(http.Dir("web")))
   http.HandleFunc("/access/", authHandler)
   http.HandleFunc("/create/", createHandler)
+  http.HandleFunc("/confirm/", confirmHandler)
   http.HandleFunc("/download/", downloadHandler)
   http.HandleFunc("/login/", loginHandler)
   http.HandleFunc("/", mainHandler)
@@ -102,6 +126,68 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
   renderTemplate(w, r, "index", nil)
 }
 
+func confirmHandler(w http.ResponseWriter, r *http.Request) {
+  //force SSL on heroku
+  if ssl {
+    redirect := forceSsl(w, r)
+    if redirect {
+      return
+    }
+  }
+
+  if r.Method == "POST" {
+    token := r.FormValue("token")
+    rc := r.FormValue("address")
+    if !common.IsHexAddress(rc){
+      //TODO: txfail form
+      handleErr(w, r, errors.New("not an address"))
+      return
+    }
+    amount := r.FormValue("amount")
+    gasprice := r.FormValue("gasprice")
+    gaslimit := r.FormValue("gaslimit")
+    nonce := r.FormValue("nonce")
+    if amount == "" || gasprice == "" || gaslimit == "" || nonce == "" {
+      handleErr(w, r, errors.New("Some of the fields seem to be empty"))
+      return
+    }
+    nc, _ := conv.ParseUint(nonce, 10, 64)
+    gl, _ := conv.ParseUint(gaslimit, 10, 64)
+    //convert floats to use a full stop instead of a comma
+    gasprice = strings.Replace(gasprice, ",", ".", 1)
+    amount = strings.Replace(amount, ",", ".", 1)
+    amt, _ := conv.ParseFloat(amount, 64)
+    gp, _ := conv.ParseFloat(gasprice, 64)
+    if amt == 0 || gp == 0 || gl == 0 {
+      handleErr(w, r, errors.New("amount, gas price or gas limit can't be zero"))
+      return
+    }
+    recipient := common.HexToAddress(rc)
+    tx, err := a.NewTx(nc, recipient, amt, gl, gp, token)
+    txToken, err := a.QueueTx(tx, token)
+    sender, _ := a.GetAccount(token)
+    from := sender.Address.Hex()
+    if err != nil {
+      //TODO: see above
+      handleErr(w, r, err)
+      return
+    }
+    d := confirm{amount, rc, from, txToken, "../"}
+    renderTemplate(w, r, "confirm", d)
+    return
+  }
+
+  redirect(w, r)
+  return
+}
+
+//redirect to root
+func redirect(w http.ResponseWriter, r *http.Request) {
+  rootUrl := protocol + r.Host + "/"
+  http.Redirect(w, r, rootUrl, http.StatusTemporaryRedirect)
+  return
+}
+
 func authHandler(w http.ResponseWriter, r *http.Request) {
   //force SSL on heroku
   if ssl {
@@ -112,42 +198,45 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
   }
 
   if r.Method == "POST" {
-    passphrase := r.FormValue("passphrase")
-    keyfile, header, err := r.FormFile("keyfile")
-    key := r.FormValue("privatekey")
+    var err error
     var account *accounts.Account
-    if key != "" {
-      account, err = a.ImportKey(key)
-    } else if keyfile != nil {
-      //make sure we don't load large files
+    log.Println(r.URL.RawQuery)
+    if r.URL.RawQuery == "file" {
+      err := r.ParseMultipartForm(16384)
+      if err != nil {
+        handleErr(w, r, err)
+        return
+      }
+      keyfile, header, err := r.FormFile("keyfile")
+      passphrase := r.FormValue("passphrase")
       if header.Size > 2048 {
-        renderTemplate(w, r, "index", nil)
+        handleErr(w, r, errors.New("keyfile looks invalid"))
         return
       }
       var keyjson []byte
       keyjson, err = ioutil.ReadAll(keyfile)
       account, err = a.ImportKeyfile(keyjson, passphrase)
+      if err != nil {
+        handleErr(w, r, err)
+        return
+      }
+    } else {
+      privatekey := r.FormValue("privatekey")
+      account, err = a.ImportKey(privatekey)
+      if err != nil {
+        handleErr(w, r, err)
+        return
+      }
     }
-    if err != nil {
-      log.Println(err)
-      renderTemplate(w, r, "index", nil)
-      return
-    }
-    balance, err := a.GetBalance(account)
-    nonce, err := a.GetNonce(account)
-    if err != nil {
-      renderTemplate(w, r, "index", nil)
-      return
-    }
+    balance, _ := a.GetBalance(account)
+    nonce, _ := a.GetNonce(account)
     token := a.CreateToken(account, "send", time.Minute*20)
     gasprice, _ := a.EstimateGas()
     p := send{balance, gasprice, nonce, token, "../"}
     renderTemplate(w, r, "send", p)
     return
   }
-
-  rootUrl := protocol + r.Host + "/"
-  http.Redirect(w, r, rootUrl, http.StatusTemporaryRedirect)
+  redirect(w, r)
   return
 }
 
@@ -165,7 +254,7 @@ func createHandler(w http.ResponseWriter, r *http.Request) {
     key, err := a.GetKey(account)
     token := a.CreateToken(account, "download", time.Minute*30)
     if err != nil {
-      renderTemplate(w, r, "index", nil)
+      handleErr(w, r, err)
       return
     }
     addr := account.Address.Hex()
@@ -189,8 +278,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
     token := r.FormValue("token")
     path, err := a.KeyfilePath(token)
     if err != nil {
-      log.Println(err.Error())
-      renderTemplate(w, r, "index", nil)
+      handleErr(w, r, err)
       return
     }
     w.Header().Set("Content-Disposition", "attachment; filename=" + path[42:] + ".json")
@@ -212,6 +300,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
   }
   renderTemplate(w, r, "login", nil)
 }
+
+ func handleErr(w http.ResponseWriter, r *http.Request, err error) {
+   log.Println(err.Error())
+   e := errorSplash{err.Error(), "../"}
+   renderTemplate(w, r, "error", e)
+ }
 
 func renderTemplate(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}){
   //if we're not at root, set path to "../", else empty string.

@@ -10,7 +10,7 @@
       </h5>
     </div>
     <div id="collapseOne" class="collapse" role="tabpanel" aria-labelledby="headingOne" data-parent="#accordion">
-      <form class="m-4" action="../access/" method="post">
+      <form class="m-4" action="../access/?key" method="post">
         <div class="form-group">
           <textarea class="form-control" id="privatekey" name="privatekey" rows="2" placeholder="Private Key"></textarea>
         </div>
@@ -26,7 +26,7 @@
       </h5>
     </div>
     <div id="collapseTwo" class="collapse" role="tabpanel" aria-labelledby="headingTwo" data-parent="#accordion">
-      <form class="m-4" action="../access/" method="post">
+      <form class="m-4" action="../access/?file" method="post" enctype="multipart/form-data">
         <div class="form-group">
           <label for="keyfile">Keyfile</label>
           <input type="file" class="form-control-file" id="keyfile" name="keyfile">
