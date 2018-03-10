@@ -81,18 +81,18 @@ func main() {
 
   //initialize templates
   templates = make(map[string]*template.Template)
-  tlist := []string{"send", "index", "login", "create", "view", "error", "confirm"}
+  tlist := []string{"send", "index", "login", "create", "view", "error", "confirm", "sent"}
   templates = make(map[string]*template.Template)
   for _, name := range tlist {
     t := template.Must(template.New("layout").ParseFiles("web/layout.html", "web/" + name + ".html"))
     templates[name] = t
   }
+  //if running on test environment
   if test {
     t := template.Must(template.New("sent").ParseFiles("web/layout.html","web/sent_test.html"))
     templates["sent"] = t
-  } else {
-    t := template.Must(template.New("sent").ParseFiles("web/layout.html","web/sent.html"))
-    templates["sent"] = t
+    t = template.Must(template.New("index").ParseFiles("web/layout.html","web/test.html"))
+    templates["index"] = t
   }
   //load handler functions
   log.Println("Ethvault running on port :"+port)
