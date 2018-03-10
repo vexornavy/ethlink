@@ -58,7 +58,6 @@ type Agent struct {
   tokens map[string]Token
   passwords map[*accounts.Account]Passphrase
   txQueue map[string]Transaction
-  gc
 }
 
 
@@ -328,7 +327,7 @@ func (a *Agent) clearExpired() {
     if time.Now().After(v.expiry) {
       delete(a.txQueue, k)
     }
-  })
+  }
   //trawl the keys/ directory for keyfiles that aren't in the keystore
   names, _ := filepath.Glob("keys/*")
   for _, v := range names {
@@ -338,6 +337,7 @@ func (a *Agent) clearExpired() {
       //delete all keyfiles that aren't in the keystore
       os.Remove(v)
     }
+  }
   return
 }
 
