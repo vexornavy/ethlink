@@ -328,14 +328,24 @@ func (a *Agent) clearExpired() {
       delete(a.txQueue, k)
     }
   }
-  //trawl the keys/ directory for keyfiles that aren't in the keystore
+  //get all files in the keys/ directory
   names, _ := filepath.Glob("keys/*")
   for _, v := range names {
-    //chop off time data from the beginning of filenames, only leaving the address, then convert it to a common.Address
+    //chop off time data from the beginning of filenames, only leaving the address
     address := common.HexToAddress(v[42:])
-    if !a.keystore.HasAddress(address) {
-      //delete all keyfiles that aren't in the keystore
+
+    acc := accounts.Account{Address: address}
+    acc, err := a.keystore.Find(acc)
+    //if we can find multiples of the same address, delete all but one from the folder
+    if strings.Contains(err.Error(), "multiple keys match address") {
       os.Remove(v)
+    }
+    //if we don't store an account with this address, delete it from the folder
+    if err == nil {
+      _, ok := a.passwords[&acc]
+      if !ok {
+        os.Remove(v)
+      }
     }
   }
   return
