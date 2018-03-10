@@ -1,6 +1,6 @@
 {{ define "content" }}
 
-<form class="m-4" action="../transaction/" method="post">
+<form class="m-4" action="../sent/" method="post">
   <div class="alert alert-success" role="alert">
     <h3>You are about to send {{.Amount}} eth from {{.From}} to {{.To}}. Are you sure you want to do this?</h3>
     <input type="hidden" name="token" value="{{.Token}}"></input>

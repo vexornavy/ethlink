@@ -62,6 +62,10 @@ type errorSplash struct {
 type Path struct {
   Path string
 }
+type showTx struct {
+  Txid string
+  Path string
+}
 
 func main() {
   port := os.Getenv("PORT")
@@ -76,12 +80,13 @@ func main() {
 
   //initialize templates
   templates = make(map[string]*template.Template)
-  tlist := []string{"send", "index", "login", "create", "view", "error", "confirm"}
+  tlist := []string{"send", "index", "login", "create", "view", "error", "confirm", "sent"}
   templates = make(map[string]*template.Template)
   for _, name := range tlist {
     t := template.Must(template.New("layout").ParseFiles("web/layout.html", "web/" + name + ".html"))
     templates[name] = t
   }
+  test := os.Getenv("ETHVAULT_ENV")
   //load handler functions
   log.Println("Ethvault running on port :"+port)
   http.Handle("/css/", http.FileServer(http.Dir("web")))
@@ -91,6 +96,7 @@ func main() {
   http.HandleFunc("/confirm/", confirmHandler)
   http.HandleFunc("/download/", downloadHandler)
   http.HandleFunc("/login/", loginHandler)
+  http.HandleFunc("/sent/", senderHandler)
   http.HandleFunc("/", mainHandler)
   http.ListenAndServe(":"+port, nil)
 }
@@ -164,11 +170,14 @@ func confirmHandler(w http.ResponseWriter, r *http.Request) {
     }
     recipient := common.HexToAddress(rc)
     tx, err := a.NewTx(nc, recipient, amt, gl, gp, token)
+    if err != nil {
+      handleErr(w, r, err)
+      return
+    }
     txToken, err := a.QueueTx(tx, token)
     sender, _ := a.GetAccount(token)
     from := sender.Address.Hex()
     if err != nil {
-      //TODO: see above
       handleErr(w, r, err)
       return
     }
@@ -301,7 +310,30 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
   renderTemplate(w, r, "login", nil)
 }
 
- func handleErr(w http.ResponseWriter, r *http.Request, err error) {
+func senderHandler(w http.ResponseWriter, r *http.Request) {
+  //force SSL on heroku
+  if ssl {
+    redirect := forceSsl(w, r)
+    if redirect {
+      return
+    }
+  }
+
+  if r.Method == "POST" {
+    token := r.FormValue("token")
+    hash, err := a.SendTx(token)
+    if err != nil {
+      handleErr(w, r, err)
+    }
+    d := showTx{hash, "../"}
+    renderTemplate(w, r, "sent", d)
+  }
+  //redirect to root if this is not a post Request
+  redirect(w, r)
+  return
+}
+
+func handleErr(w http.ResponseWriter, r *http.Request, err error) {
    log.Println(err.Error())
    e := errorSplash{err.Error(), "../"}
    renderTemplate(w, r, "error", e)

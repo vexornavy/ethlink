@@ -188,14 +188,14 @@ func (a *Agent) ImportKey(privatekey string) (account *accounts.Account, err err
   return &acc, nil
 }
 
-//returns account's balance in ETH to the nearest Szano/microether
+//returns account's balance in ETH to the nearest gwei
 func (a *Agent) GetBalance(acc *accounts.Account) (balance float64, err error) {
   bal, err := a.client.PendingBalanceAt(context.TODO(), acc.Address)
   //convert balance from wei to Szabo (10^-6 eth)
   //integer division, may not be precise
-  bal = bal.Div(bal, big.NewInt(Billion))
+  bal = bal.Div(bal, big.NewInt(Milliard))
   //convert balance from Szabo to Ether
-  balance = float64(bal.Int64()) / Million
+  balance = float64(bal.Int64()) / Milliard
   return balance, err
 }
 
@@ -213,6 +213,7 @@ func (a *Agent) EstimateGas() (gasprice float64, err error) {
 }
 
 func (a *Agent) NewTx(nonce uint64, to common.Address, amount float64, gasLimit uint64, gasPrice float64, token string) (tx *types.Transaction, err error) {
+  //look up account
   t, ok := a.tokens[token]
   if !ok {
     return nil, errors.New("token not found")
@@ -223,7 +224,6 @@ func (a *Agent) NewTx(nonce uint64, to common.Address, amount float64, gasLimit 
   if t.permissions != "send" {
     return nil, errors.New("token invalid")
   }
-
   //no data - empty array
   var d []byte
 
@@ -233,7 +233,7 @@ func (a *Agent) NewTx(nonce uint64, to common.Address, amount float64, gasLimit 
   x = x.Mul(x, tril)
   amt, _ := x.Int(nil)
 
-  //convert amount from gwei(float64) to wei(*big.Int)
+  //convert gasprice from gwei(float64) to wei(*big.Int)
   x = big.NewFloat(gasPrice)
   mrd := big.NewFloat(float64(Milliard))
   x = x.Mul(x, mrd)
@@ -244,6 +244,7 @@ func (a *Agent) NewTx(nonce uint64, to common.Address, amount float64, gasLimit 
 }
 
 func (a *Agent) QueueTx(tx *types.Transaction, token string) (txToken string, err error) {
+  //look up account
   t, ok := a.tokens[token]
   if !ok {
     return "", errors.New("token not found")
@@ -254,7 +255,16 @@ func (a *Agent) QueueTx(tx *types.Transaction, token string) (txToken string, er
   if t.permissions != "send" {
     return "", errors.New("token invalid")
   }
+  //fetch account
   acc := t.account
+  //check if account can afford transactions
+  cost := tx.Cost()
+  bal, err := a.client.PendingBalanceAt(context.TODO(), acc.Address)
+  com := bal.Cmp(cost)
+  if com < 0 {
+    return "", errors.New("insufficient balance for transaction")
+  }
+  //sign transaction and put it into queue for 10 minutes, return a token which lets you send it
   passphrase := a.passwords[acc].passphrase
   tx, err = a.keystore.SignTxWithPassphrase(*acc, passphrase, tx, chainID)
   if err != nil {
@@ -263,8 +273,25 @@ func (a *Agent) QueueTx(tx *types.Transaction, token string) (txToken string, er
   b := make([]byte, 32)
   crand.Read(b)
   txToken = fmt.Sprintf("%x", b)
-  a.txQueue[txToken] = Transaction{time.Now().Add(time.Minute*20), tx}
+  a.txQueue[txToken] = Transaction{time.Now().Add(time.Minute*10), tx}
   return txToken, nil
+}
+
+func (a *Agent) SendTx(token string) (txHash string, err error){
+  tx, ok := a.txQueue[token]
+  if !ok {
+    return "", errors.New("transaction not found")
+  }
+  if time.Now().After(tx.expiry) {
+    return "", errors.New("transaction expired")
+  }
+  err = a.client.SendTransaction(context.TODO(), tx.transaction)
+  if err != nil {
+    return "", err
+  }
+  txHash = tx.transaction.Hash().Hex()
+  delete(a.txQueue, token)
+  return txHash, nil
 }
 
 func (a *Agent) GetAccount(token string) (acc *accounts.Account, err error) {
