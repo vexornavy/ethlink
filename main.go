@@ -20,6 +20,7 @@ import (
 var templates map[string]*template.Template
 //figure out if we need to force HTTPS
 var ssl = os.Getenv("FORCE_SSL") == "TRUE"
+var test = os.Getenv("ETHVAULT_ENV") == "test"
 //create agent
 var a = agent.NewAgent()
 var protocol string
@@ -80,13 +81,19 @@ func main() {
 
   //initialize templates
   templates = make(map[string]*template.Template)
-  tlist := []string{"send", "index", "login", "create", "view", "error", "confirm", "sent"}
+  tlist := []string{"send", "index", "login", "create", "view", "error", "confirm"}
   templates = make(map[string]*template.Template)
   for _, name := range tlist {
     t := template.Must(template.New("layout").ParseFiles("web/layout.html", "web/" + name + ".html"))
     templates[name] = t
   }
-  test := os.Getenv("ETHVAULT_ENV")
+  if test {
+    t := template.Must(template.New("sent").ParseFiles("web/layout.html","web/sent_test.html"))
+    templates["sent"] = t
+  } else {
+    t := template.Must(template.New("sent").ParseFiles("web/layout.html","web/sent.html"))
+    templates["sent"] = t
+  }
   //load handler functions
   log.Println("Ethvault running on port :"+port)
   http.Handle("/css/", http.FileServer(http.Dir("web")))

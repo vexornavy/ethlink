@@ -31,7 +31,7 @@ const (
   Trillion = Million * Billion
 )
 var RPC = os.Getenv("RPC_URL")
-var test = os.Getenv("ETHVAULT_ENV")
+var test = os.Getenv("ETHVAULT_ENV") == "test"
 var chainID *big.Int
 
 //TODO : periodically delete expired tokens
@@ -58,13 +58,14 @@ type Agent struct {
   tokens map[string]Token
   passwords map[*accounts.Account]Passphrase
   txQueue map[string]Transaction
+  gc
 }
 
 
 //Initialize a new agent
 func NewAgent() *Agent {
   var network string
-  if test == "test" || test == "TEST" {
+  if test {
     chainID = big.NewInt(3)
     if RPC == "" {
       RPC = "https://ropsten.infura.io"
@@ -83,6 +84,7 @@ func NewAgent() *Agent {
   queue := make(map[string]Transaction)
   ks := keystore.NewKeyStore("keys/", keystore.StandardScryptN, keystore.StandardScryptP)
   a := Agent{ks, client, tokens, passwds, queue}
+  go a.gcLoop()
   log.Println("agent initialized on " + network)
   time.Sleep(time.Millisecond*100)
   return &a
@@ -326,17 +328,26 @@ func (a *Agent) clearExpired() {
     if time.Now().After(v.expiry) {
       delete(a.txQueue, k)
     }
-  }
+  })
+  //trawl the keys/ directory for keyfiles that aren't in the keystore
+  names, _ := filepath.Glob("keys/*")
+  for _, v := range names {
+    //chop off time data from the beginning of filenames, only leaving the address, then convert it to a common.Address
+    address := common.HexToAddress(v[42:])
+    if !a.keystore.HasAddress(address) {
+      //delete all keyfiles that aren't in the keystore
+      os.Remove(v)
+    }
   return
 }
 
 func (a *Agent) gcLoop() {
-  //trigger garbage collection routine every 15 minutes automatically
+  //clear expired data every two hours
   for {
     log.Println("clearing all expired data...")
     a.clearExpired()
     log.Println("done")
-    time.Sleep(time.Minute*15)
+    time.Sleep(time.Hour*2)
   }
   return
 }
