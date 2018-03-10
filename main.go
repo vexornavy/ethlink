@@ -89,9 +89,9 @@ func main() {
   }
   //if running on test environment
   if test {
-    t := template.Must(template.New("sent").ParseFiles("web/layout.html","web/sent_test.html"))
+    t := template.Must(template.New("layout").ParseFiles("web/layout.html","web/sent_test.html"))
     templates["sent"] = t
-    t = template.Must(template.New("index").ParseFiles("web/layout.html","web/test.html"))
+    t = template.Must(template.New("layout").ParseFiles("web/layout.html","web/test.html"))
     templates["index"] = t
   }
   //load handler functions
