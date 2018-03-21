@@ -331,9 +331,11 @@ func senderHandler(w http.ResponseWriter, r *http.Request) {
     hash, err := a.SendTx(token)
     if err != nil {
       handleErr(w, r, err)
+      return
     }
     d := showTx{hash, "../"}
     renderTemplate(w, r, "sent", d)
+    return
   }
   //redirect to root if this is not a post Request
   redirect(w, r)
