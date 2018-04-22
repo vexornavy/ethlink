@@ -192,7 +192,7 @@ func (a *Agent) ImportKey(privatekey string) (account *accounts.Account, err err
 //returns account's balance in ETH to the nearest gwei
 func (a *Agent) GetBalance(acc *accounts.Account) (balance float64, err error) {
   bal, err := a.client.PendingBalanceAt(context.TODO(), acc.Address)
-  //convert balance from wei to Szabo (10^-6 eth)
+  //convert balance from wei to Szabo (10^-9 eth)
   //integer division, may not be precise
   bal = bal.Div(bal, big.NewInt(Milliard))
   //convert balance from Szabo to Ether
@@ -337,8 +337,10 @@ func (a *Agent) clearExpired() {
     acc := accounts.Account{Address: address}
     acc, err := a.keystore.Find(acc)
     //if we can find multiples of the same address, delete all but one from the folder
-    if strings.Contains(err.Error(), "multiple keys match address") {
-      os.Remove(v)
+    if err != nil {
+      if strings.Contains(err.Error(), "multiple keys match address") {
+        os.Remove(v)
+      }
     }
     //if we don't store an account with this address, delete it from the folder
     if err == nil {
